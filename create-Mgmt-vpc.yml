@@ -1,1 +1,105 @@
-git@github.com:airani1346/MgmtServer.git
+---
+- hosts: localhost  # put localhost.  We are processing against aws
+  connection: local  # put local.  We are processing against aws
+  gather_facts: False  # don't gather facts against localhost
+  tasks:
+  - name: create a new ec2 VPC
+    # create a vpc with name, cidr block,dns support, and tenancy
+    ec2_vpc_net:
+      name: "{{ vpc_name }}" 
+      cidr_block: "{{ vpc_cidr }}"
+      region: "{{ region }}"
+      # enable dns support 
+      dns_support: yes
+      # enable dns hostnames
+      dns_hostnames: yes
+      tenancy: default
+      state: "{{ state }}"
+    register: vpc
+    
+  - name: Set VPC ID in variable
+    set_stats:
+      data:
+        vpc_id: "{{ vpc.vpc.id }}"
+
+  - name: create ec2 vpc internet gateway 
+    ec2_vpc_igw:
+      region: "{{ region }}"
+      vpc_id: "{{ vpc.vpc.id }}"
+      state: "{{ state }}"
+      tags:
+        Name: "igw-{{ vpc_name }}"
+    register: igw
+
+  - name: Lookup route tables
+    ec2_vpc_route_table_info:
+      region: "{{ region }}"
+      filters:
+        vpc-id: "{{ vpc.vpc.id  }}"
+    register: vpc_route_tables
+    
+  - name: Setup route tables
+    ec2_vpc_route_table:
+      region: "{{ region }}"
+      vpc_id: "{{ vpc.vpc.id  }}"
+      lookup: id
+      purge_subnets: false
+      route_table_id: "{{ vpc_route_tables.route_tables[0].id }}"
+      routes:
+        - dest: 0.0.0.0/0
+          gateway_id: "{{ igw.gateway_id }}"
+          
+  - name: associate subnet to the VPC
+    ec2_vpc_subnet:
+      region: "{{ region }}"
+      vpc_id: "{{ vpc.vpc.id }}"
+      state: "{{ state }}"
+      cidr: "{{ subnet_cidr }}"
+      map_public: yes
+      resource_tags:
+        Name: "subnet-{{ vpc_name }}"
+    register: subnet
+
+  - name: Create Security Group
+    ec2_group:
+      name: "SG-{{ vpc_name }}"
+      description: "Security Group for {{ vpc_name }}"
+      vpc_id: "{{ vpc.vpc.id }}"
+      region: "{{ region }}"
+      rules:
+        - rule_desc: Allow all inbound traffic
+          proto: -1
+          ports: -1
+          cidr_ip: "{{ destinationCidrBlock }}"
+    register: security_group
+    
+  - name: Get AMI Image ID for CheckPoint Management Server
+    ec2_ami_info:
+      region: "{{ region }}"
+      filters:
+        name: "Check Point*IaaS BYOL*{{ cp_version }}*"
+    register: amis_debian
+
+  - name:  print ami id
+    vars:
+      debian_ami: >
+        {{ amis_debian.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last }}
+    debug:
+      msg: "{{debian_ami.image_id}}"
+    register: debian_ami
+
+- name: launche Management
+    ec2:
+      region: "{{ region }}"
+      image: "{{ debian_ami.msg }}"
+      instance_type: "{{ mgmt_hw }}"
+      private_ip: "{{ mgmt_ip_addr }}"
+      wait: no
+      group_id: "{{ security_group.group_id }}"
+      vpc_subnet_id: "{{ subnet.subnet.id }}"
+      key_name: "{{ keypairName  }}"
+      assign_public_ip: True
+      instance_tags: 
+        Name: CP_Management{{ cp_version }}
+      user_data: "{{ mgmt_user_data }}"
+    register: MgmtInstance 
