@@ -93,7 +93,7 @@
       region: "{{ region }}"
       image: "{{ debian_ami.msg }}"
       instance_type: "{{ mgmt_hw }}"
-      private_ip: "{{ mgmt_ip_addr }}"
+#      private_ip: "{{ mgmt_ip_addr }}"
       wait: no
       group_id: "{{ security_group.group_id }}"
       vpc_subnet_id: "{{ subnet.subnet.id }}"
