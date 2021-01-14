@@ -17,7 +17,7 @@
        url: https://dl3.checkpoint.com/paid/58/5806c0bd1b2767b8577d735d7f8f183c/Check_Point_CME_AUTOUPDATE_Bundle_T126_AutoUpdate.tar?HashKey=1610636303_cf373072d6deab84f95350d2e3971f50&xtn=.tar
        dest: /home/admin/cme
        mode: 0755
-       checksum: sha512:5bdea5414713c9ba39e226f062701fa14998b1a798c9750f956a0f59b5edabb8d83af9ec9f81cf9f47fa92c21b560c9b2be1b543d0bd8f1b49579b69101d3a8f
+#       checksum: sha512:5bdea5414713c9ba39e226f062701fa14998b1a798c9750f956a0f59b5edabb8d83af9ec9f81cf9f47fa92c21b560c9b2be1b543d0bd8f1b49579b69101d3a8f
        group: admin
        owner: root
 
